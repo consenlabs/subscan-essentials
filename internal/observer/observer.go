@@ -6,6 +6,7 @@ import (
 	"github.com/itering/substrate-api-rpc/pkg/recws"
 	"log"
 	"os"
+	signals "os/signal"
 	"syscall"
 	"time"
 
@@ -20,7 +21,22 @@ var (
 
 func Run(dt, signal string) {
 	daemon.AddCommand(daemon.StringFlag(&signal, "stop"), syscall.SIGQUIT, termHandler)
-	doAction(dt)
+
+	// ------ 不让程序通过 daemon 后台运行 -------
+	c := make(chan os.Signal, 1)
+	signals.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		for {
+			select {
+			case <-c:
+				_ = termHandler(syscall.SIGQUIT)
+			}
+		}
+	}()
+	doRun(dt)
+	// -----------------------------------------
+
+	// doAction(dt)
 }
 
 func doAction(dt string) {
